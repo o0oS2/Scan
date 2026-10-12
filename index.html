@@ -3,7 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Quét mã QR liên tục</title>
+<title>Quét Lot ID</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Quét Lot ID">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -44,7 +52,7 @@ footer{text-align:center;color:var(--mu);font-size:13px;padding:20px 0 8px}
 </head>
 <body>
 <div class="wrap">
-  <h1>📷 Quét mã QR liên tục</h1>
+  <h1>📷 Quét Lot ID</h1>
 
   <div class="cam" id="cam"><video id="vid" playsinline muted></video><div class="frame" id="frame"></div></div>
   <div class="status" id="status">Bấm “Quét” để mở camera.</div>
@@ -233,6 +241,7 @@ footer{text-align:center;color:var(--mu);font-size:13px;padding:20px 0 8px}
   };
   document.addEventListener('visibilitychange',function(){if(document.hidden&&running)stop()});
   ui('idle');
+  if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
 })();
 </script>
 </body>

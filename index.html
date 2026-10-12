@@ -57,6 +57,7 @@ footer{text-align:center;color:var(--mu);font-size:13px;padding:20px 0 8px}
   <div class="cam" id="cam"><video id="vid" playsinline muted></video><div class="frame" id="frame"></div></div>
   <div class="status" id="status">Bấm “Quét” để mở camera.</div>
 
+  <div class="row" id="ctlInstall" hidden><button class="ok" id="bInstall">⬇ Cài app Quét Lot ID lên màn hình</button></div>
   <div class="row" id="ctl">
     <button id="bStart">▶ Quét</button>
   </div>
@@ -240,6 +241,10 @@ footer{text-align:center;color:var(--mu);font-size:13px;padding:20px 0 8px}
     rows=[];seen={};render();ui('stopped');setStatus('Đã xoá danh sách.');
   };
   document.addEventListener('visibilitychange',function(){if(document.hidden&&running)stop()});
+  var dip=null;
+  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();dip=e;show('ctlInstall',true)});
+  $('bInstall').onclick=async function(){if(!dip)return;dip.prompt();try{await dip.userChoice}catch(_){}dip=null;show('ctlInstall',false)};
+  window.addEventListener('appinstalled',function(){show('ctlInstall',false)});
   ui('idle');
   if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
 })();

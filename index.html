@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Quét mã QR liên tục</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
 --bg:#f5f6f8;--card:#fff;--tx:#1b1f24;--mu:#6b7280;--bd:#e3e6ea;--pr:#2563eb;--ok:#16a34a;--dg:#dc2626}
@@ -162,12 +162,14 @@ footer{text-align:center;color:var(--mu);font-size:13px;padding:20px 0 8px}
   async function start(){
     if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
       setStatus('Không dùng được camera: '+(window.isSecureContext?'trình duyệt quá cũ, hãy dùng Chrome/Safari mới.':'trang chưa chạy HTTPS.'),'warn');return}
+    if(typeof jsQR==='undefined'){setStatus('Chưa tải được thư viện quét QR. Kiểm tra mạng rồi tải lại trang.','warn');return}
     try{
       stream=await getCam();
       vid.srcObject=stream;await vid.play();
       running=true;ui('scan');setStatus('Đang quét… đưa mã QR vào khung.');
       tick();
     }catch(e){
+      running=false;if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}
       ui(rows.length?'stopped':'idle');
       setStatus('Không mở được camera. '+explain(e),'warn');
     }

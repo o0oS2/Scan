@@ -142,17 +142,34 @@ footer{text-align:center;color:var(--mu);font-size:13px;padding:20px 0 8px}
     timer=setTimeout(tick,120);
   }
 
+  async function getCam(){
+    try{return await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false})}
+    catch(e){
+      if(e.name==='NotAllowedError'||e.name==='SecurityError')throw e;
+      return await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+    }
+  }
+  function explain(e){
+    var ua=navigator.userAgent||'',inApp=/Zalo|FBAN|FBAV|Messenger|Instagram|Line\/|TikTok|MicroMessenger/i.test(ua),framed=window.self!==window.top;
+    if(!window.isSecureContext)return 'Trang chưa chạy HTTPS nên trình duyệt chặn camera. Hãy mở bằng địa chỉ https://.';
+    if(inApp)return 'Bạn đang mở trong trình duyệt của ứng dụng (Zalo/Facebook...) nên camera bị chặn. Hãy bấm ⋯ → “Mở bằng Chrome/Safari”.';
+    if(framed&&(e.name==='NotAllowedError'||e.name==='SecurityError'))return 'Trang đang nằm trong khung nhúng (iframe) không được cấp camera. Hãy mở trang trực tiếp ở tab riêng.';
+    if(e.name==='NotAllowedError')return 'Camera đang bị chặn cho trang này. Vào Cài đặt trình duyệt → Quyền trang web → Camera → chọn Cho phép, rồi tải lại trang. Ngoài ra hãy kiểm tra quyền camera của chính ứng dụng trình duyệt trong cài đặt điện thoại.';
+    if(e.name==='NotReadableError')return 'Camera đang được ứng dụng khác sử dụng. Hãy tắt ứng dụng đó rồi thử lại.';
+    if(e.name==='NotFoundError')return 'Không tìm thấy camera trên thiết bị.';
+    return (e.name||'Lỗi')+': '+(e.message||'');
+  }
   async function start(){
     if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-      setStatus('Trình duyệt không hỗ trợ camera. Hãy dùng Chrome/Safari mới nhất.','warn');return}
+      setStatus('Không dùng được camera: '+(window.isSecureContext?'trình duyệt quá cũ, hãy dùng Chrome/Safari mới.':'trang chưa chạy HTTPS.'),'warn');return}
     try{
-      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}},audio:false});
+      stream=await getCam();
       vid.srcObject=stream;await vid.play();
       running=true;ui('scan');setStatus('Đang quét… đưa mã QR vào khung.');
       tick();
     }catch(e){
       ui(rows.length?'stopped':'idle');
-      setStatus('Không mở được camera: '+(e.name==='NotAllowedError'?'bạn chưa cấp quyền camera.':e.message),'warn');
+      setStatus('Không mở được camera. '+explain(e),'warn');
     }
   }
   function stop(){

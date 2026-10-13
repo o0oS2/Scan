@@ -137,7 +137,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       </div>
     </div>
   </section>
-  <footer>© Đức Trung · v12</footer>
+  <footer>© Đức Trung · v13</footer>
 </div>
 
 <div class="bar" id="bar">
@@ -503,23 +503,35 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     if(!navigator.share)return 'trình duyệt này không hỗ trợ chia sẻ';
     return e?(e.name||'lỗi')+(e.message?': '+String(e.message).slice(0,80):''):'không rõ nguyên nhân';
   }
+  var shareBusy=false;
   async function exportXlsx(s){
-    if(!s||!s.codes.length)return;
+    if(!s||!s.codes.length||shareBusy)return;
+    // Tạo file ĐỒNG BỘ nếu thư viện đã có → giữ nguyên "quyền người dùng" của lần bấm
     var file;
     try{
-      if(typeof XLSX==='undefined')await loadXlsx();   // thường đã có sẵn → không await, bảng chia sẻ mở tức thì
+      if(typeof XLSX==='undefined')await loadXlsx();
       file=buildFile(s);
     }catch(e){toast('Lỗi tạo file: '+(e&&e.message||e));return}
-    var f,err=null;
-    try{
-      f=new File([file.blob],file.name,{type:file.blob.type});
-      if(navigator.share){
-        try{await navigator.share({files:[f],title:file.name});return}   // bảng chia sẻ: gửi đi hoặc lưu vào máy
-        catch(e){if(e&&e.name==='AbortError')return;err=e}
+    var f=null,err=null,tried=false;
+    try{f=new File([file.blob],file.name,{type:file.blob.type})}catch(e){err=e}
+    if(f&&navigator.share){
+      var data={files:[f]};   // không kèm title/text: một số máy Android từ chối khi gộp
+      var okShare=true;
+      try{if(navigator.canShare)okShare=navigator.canShare(data)}catch(e){okShare=false}
+      if(okShare){
+        tried=true;shareBusy=true;
+        try{await navigator.share(data);shareBusy=false;return}
+        catch(e){
+          shareBusy=false;
+          if(e&&e.name==='AbortError')return;   // người dùng tự đóng bảng chia sẻ
+          err=e;
+        }
       }
-    }catch(e){err=e}
-    saveBlob(file.blob,file.name);   // không mở được bảng chia sẻ → tải thẳng xuống
-    toast('Không mở được bảng chia sẻ ('+whyNoShare(err)+'). Đã tải file '+file.name,6000);
+    }
+    // Không chia sẻ được → tải thẳng file xuống (không báo lỗi đáng sợ)
+    saveBlob(file.blob,file.name);
+    if(tried&&err&&err.name==='NotAllowedError')toast('Đã tải file '+file.name+' về máy (Tải xuống). Trình duyệt chặn mở bảng chia sẻ file.',5000);
+    else toast('Đã tải file '+file.name+' ('+whyNoShare(err)+')',5000);
   }
   async function copyStr(str,okMsg){
     try{await navigator.clipboard.writeText(str);toast(okMsg)}

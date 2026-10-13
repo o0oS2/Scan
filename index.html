@@ -62,18 +62,22 @@ button:disabled{opacity:.45}
 footer{text-align:center;color:var(--mu);font-size:13px;padding:20px 0 8px}
 .empty{padding:22px;text-align:center;color:var(--mu)}
 /* bảng đã lưu */
-.srow{display:grid;grid-template-columns:34px 1fr auto;grid-template-areas:"n f c" ". nt nt";gap:2px 10px;padding:12px 14px;border-bottom:1px solid var(--bd);align-items:center}
+.srow{display:grid;grid-template-columns:30px minmax(0,1fr) auto;grid-template-areas:"n f c" ". d c" ". nt nt";column-gap:10px;row-gap:2px;padding:12px 14px;border-bottom:1px solid var(--bd);align-items:center}
 .srow:last-child{border-bottom:0}
 .srow.it{cursor:pointer}.srow.it:active{background:var(--bg)}
-.srow .n{grid-area:n}.srow .f{grid-area:f;font-weight:600;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;min-width:0}.srow .f .dt{font-weight:400;font-size:13px;color:var(--mu);white-space:nowrap;font-variant-numeric:tabular-nums}.srow .c{grid-area:c;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--mu);white-space:nowrap}
+.srow .n{grid-area:n;min-width:0;text-align:right}
+.srow .f{grid-area:f;font-weight:600;word-break:break-all}
+.srow .d{grid-area:d;font-size:13px;color:var(--mu);font-variant-numeric:tabular-nums;white-space:nowrap}
+.srow .c{grid-area:c;text-align:right;font-variant-numeric:tabular-nums;font-size:14px;color:var(--mu);white-space:nowrap}
 .srow .nt{grid-area:nt;color:var(--mu);font-size:14px;word-break:break-word}
-.shead{background:var(--bg);font-size:13px;color:var(--mu);font-weight:600;padding:8px 14px}
-.shead .nt{display:none}
 @media(min-width:700px){
-  .srow{grid-template-columns:44px 1.5fr auto 1.2fr;grid-template-areas:"n f c nt"}
-  .shead .nt{display:block}
+  .srow{grid-template-columns:40px minmax(0,1.2fr) 150px 70px minmax(0,1.5fr);grid-template-areas:"n f d c nt";column-gap:14px}
   .srow .nt{font-size:15px}
 }
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+@media(min-width:700px){.acts{grid-template-columns:repeat(4,1fr)}}
+.acts button{min-width:0;padding:12px 6px;font-size:15px;white-space:nowrap}
+.dgt{color:var(--dg)}
 .meta{font-size:13px;color:var(--mu);margin:8px 0}
 .dtitle{font-weight:700;word-break:break-all;margin:6px 0}
 .hint{font-size:12px;color:var(--mu);margin-top:8px}
@@ -116,23 +120,17 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   <section id="p2" hidden>
     <div id="listView">
       <div class="list">
-        <div class="srow shead"><span class="n">STT</span><span class="f">Tên danh sách · 📅 Ngày giờ</span><span class="c">Số mã</span><span class="nt">Ghi chú</span></div>
         <div id="srows"></div>
       </div>
     </div>
     <div id="detView" hidden>
-      <div class="row" style="margin-top:0"><button class="sec sm top-btn" id="dBack">← Danh sách</button></div>
       <div class="dtitle" id="dTitle"></div>
       <input type="text" id="dNote" placeholder="Ghi chú" maxlength="200" autocomplete="off">
-      <div class="row">
-        <button id="dCopy">📋 Sao chép tất cả ID</button>
+      <div class="acts">
+        <button class="sec" id="dCopy">📋 Sao chép tất cả</button>
         <button class="ok" id="dXlsx">📊 Excel</button>
-      </div>
-      <div class="row">
-        <button class="big" id="dScan">▶ Quét tiếp vào danh sách này</button>
-      </div>
-      <div class="row">
-        <button class="sec sm" id="dDel" style="color:var(--dg)">🗑 Xoá danh sách</button>
+        <button id="dScan">▶ Quét tiếp</button>
+        <button class="sec dgt" id="dDel">🗑 Xóa</button>
       </div>
       <div class="list">
         <div class="lh"><span>ID đã quét (bấm để sao chép)</span><span id="dCnt">0</span></div>
@@ -436,8 +434,8 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     if(!sessions.length){box.innerHTML='<div class="empty">Chưa có danh sách nào. Quét mã đầu tiên là tự lưu.</div>';return}
     sessions.forEach(function(s,i){
       var r=document.createElement('div');r.className='srow it';
-      var f=mkSpan('f','');f.append(mkSpan('nm',s.file),mkSpan('dt','📅 '+fmt(s.created)));
-      r.append(mkSpan('n',i+1),f,mkSpan('c',s.codes.length+' mã'),mkSpan('nt',s.note||'—'));
+      r.append(mkSpan('n',i+1),mkSpan('f',s.file),mkSpan('d','📅 '+fmt(s.created)),mkSpan('c',s.codes.length+' mã'));
+      if(s.note)r.append(mkSpan('nt',s.note));
       r.onclick=function(){openDetail(s)};
       box.appendChild(r);
     });
@@ -504,7 +502,8 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 
   /* ---------- Sự kiện ---------- */
   $('t1').onclick=function(){showTab(1)};
-  $('t2').onclick=function(){showTab(2)};
+  function openList(){if(detail)closeDetail();showTab(2)}
+  $('t2').onclick=openList;
   $('bStart').onclick=start;
   $('bResume').onclick=start;
   $('bNew').onclick=function(){newSession(true);render();start()};
@@ -513,8 +512,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   $('bShare').onclick=shareText;
   $('bCopy').onclick=function(){if(codes().length)copyStr(asText(cur),'Đã sao chép '+cur.codes.length+' dòng')};
   $('bLink').onclick=shareLink;
-  $('dBack').onclick=closeDetail;
-  $('dCopy').onclick=function(){if(detail&&detail.codes.length)copyStr(asText(detail),'Đã sao chép '+detail.codes.length+' ID')};
+    $('dCopy').onclick=function(){if(detail&&detail.codes.length)copyStr(asText(detail),'Đã sao chép '+detail.codes.length+' ID')};
   $('dXlsx').onclick=function(){exportXlsx(detail)};
   $('dScan').onclick=function(){
     if(!detail)return;
@@ -552,6 +550,19 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   $('bInstall').onclick=async function(){if(!dip)return;dip.prompt();try{await dip.userChoice}catch(_){}dip=null;show('ctlInstall',false)};
   window.addEventListener('appinstalled',function(){show('ctlInstall',false)});
   window.addEventListener('resize',fitBar);
+  /* vuốt trái/phải để đổi tab */
+  var sx=0,sy=0,st=0,sOk=false;
+  document.addEventListener('touchstart',function(e){
+    var t=e.target;
+    sOk=e.touches.length===1&&!(t.closest&&t.closest('input,textarea,dialog'));
+    if(sOk){sx=e.touches[0].clientX;sy=e.touches[0].clientY;st=Date.now()}
+  },{passive:true});
+  document.addEventListener('touchend',function(e){
+    if(!sOk)return;sOk=false;
+    var c=e.changedTouches[0],dx=c.clientX-sx,dy=c.clientY-sy;
+    if(Date.now()-st>700||Math.abs(dx)<70||Math.abs(dx)<Math.abs(dy)*1.5)return;
+    if(dx<0&&tab===1)openList();else if(dx>0&&tab===2)showTab(1);
+  },{passive:true});
 
   ui('idle');render();renderSessions();
   initServer().then(refresh);

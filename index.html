@@ -124,7 +124,6 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       </div>
     </div>
     <div id="detView" hidden>
-      <div class="dtitle" id="dTitle"></div>
       <input type="text" id="dNote" placeholder="Ghi chú" maxlength="200" autocomplete="off">
       <div class="acts">
         <button class="sec" id="dCopy">📋 Sao chép tất cả</button>
@@ -133,7 +132,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
         <button class="sec dgt" id="dDel">🗑 Xóa</button>
       </div>
       <div class="list">
-        <div class="lh"><span>ID đã quét (bấm để sao chép)</span><span id="dCnt">0</span></div>
+        <div class="lh"><span id="dName" style="word-break:break-all"></span><span id="dCnt">0</span></div>
         <div id="dIds"></div>
       </div>
     </div>
@@ -445,7 +444,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   function renderDetail(){
     if(!detail||tab!==2)return;
     var s=detail;
-    $('dTitle').textContent=s.file;
+    $('dName').textContent=s.file;
     if(document.activeElement!==$('dNote'))$('dNote').value=s.note||'';
     $('dCnt').textContent=s.codes.length;
     var box=$('dIds');box.innerHTML='';
@@ -459,20 +458,49 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   }
 
   /* ---------- Xuất / chia sẻ / sao chép ---------- */
+  function loadXlsx(){
+    if(typeof XLSX!=='undefined')return Promise.resolve(true);
+    return new Promise(function(ok){
+      var sc=document.createElement('script');
+      sc.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      sc.onload=function(){ok(typeof XLSX!=='undefined')};sc.onerror=function(){ok(false)};
+      document.head.appendChild(sc);
+    });
+  }
+  function saveBlob(blob,name){
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(function(){URL.revokeObjectURL(a.href)},4000);
+  }
   async function exportXlsx(s){
     if(!s||!s.codes.length)return;
-    var aoa=[['Ghi chú',s.note||''],[],['STT','Nội dung mã','Thời gian']].concat(s.codes.map(function(r,i){return [i+1,r.code,r.time]}));
-    var ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:8},{wch:50},{wch:20}];
-    var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'QR');
-    var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
-    var name=(s.file||'qr_'+Date.now())+'.xlsx';
+    var base=(s.file||'qr_'+Date.now()),blob,name;
     try{
-      var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      if(await loadXlsx()){
+        var aoa=[['Ghi chú',s.note||''],[],['STT','Nội dung mã','Thời gian']].concat(s.codes.map(function(r,i){return [i+1,String(r.code),r.time||'']}));
+        var ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:8},{wch:50},{wch:20}];
+        var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'QR');
+        var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+        name=base+'.xlsx';
+        blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      }else{
+        // không tải được thư viện Excel (mất mạng...) → xuất CSV, Excel vẫn mở được
+        var q=function(v){return '"'+String(v).replace(/"/g,'""')+'"'};
+        var csv='\ufeff'+['STT,Nội dung mã,Thời gian'].concat(s.codes.map(function(r,i){return [i+1,q(r.code),q(r.time||'')].join(',')})).join('\r\n');
+        name=base+'.csv';
+        blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+        toast('Chưa tải được thư viện Excel, xuất file CSV');
+      }
+    }catch(e){toast('Lỗi tạo file: '+(e&&e.message||e));return}
+    try{
       var f=new File([blob],name,{type:blob.type});
-      if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return}
-      var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();
-      toast('Đã xuất file '+name);
-    }catch(e){if(e&&e.name!=='AbortError')toast('Không xuất được file: '+e.message)}
+      if(navigator.canShare&&navigator.canShare({files:[f]})){
+        try{await navigator.share({files:[f],title:name});return}
+        catch(e){if(e&&e.name==='AbortError')return}   // lỗi khác → tải thẳng xuống
+      }
+      saveBlob(blob,name);
+      if(name.slice(-4)==='xlsx')toast('Đã xuất file '+name);
+    }catch(e){toast('Không xuất được file: '+(e&&e.message||e))}
   }
   async function copyStr(str,okMsg){
     try{await navigator.clipboard.writeText(str);toast(okMsg)}

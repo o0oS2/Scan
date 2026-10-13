@@ -58,7 +58,7 @@ button:disabled{opacity:.45}
 .n{color:var(--mu);min-width:28px;font-variant-numeric:tabular-nums}
 .v{flex:1;word-break:break-all}
 .t{color:var(--mu);font-size:12px;white-space:nowrap}
-.x{background:none;border:0;color:var(--mu);min-width:0;flex:0;padding:0 4px;font-size:20px}
+.x{background:none;border:0;color:var(--mu);min-width:0;flex:0;padding:0 8px;font-size:22px;line-height:1}
 footer{text-align:center;color:var(--mu);font-size:13px;padding:20px 0 8px}
 .empty{padding:22px;text-align:center;color:var(--mu)}
 /* bảng đã lưu */
@@ -439,6 +439,13 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       box.appendChild(r);
     });
   }
+  function delOne(s,i){
+    var r=s.codes[i];if(!r||!confirm('Xóa ID này?\n'+r.code))return;
+    s.codes.splice(i,1);
+    if(s===cur){delete seen[r.code];render();if(!running)ui(cur.codes.length?'stopped':'idle')}
+    commit(s);
+    toast('Đã xóa ID');
+  }
   function openDetail(s){detail=s;show('listView',false);show('detView',true);renderDetail();window.scrollTo(0,0)}
   function closeDetail(){detail=null;show('detView',false);show('listView',true);renderSessions()}
   function renderDetail(){
@@ -451,7 +458,9 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     if(!s.codes.length){box.innerHTML='<div class="empty">Không có mã.</div>';return}
     s.codes.forEach(function(r,i){
       var d=document.createElement('div');d.className='item click';
-      d.append(mkSpan('n',i+1),mkSpan('v',r.code),mkSpan('t',r.time.slice(11)));
+      var x=document.createElement('button');x.className='x';x.textContent='×';x.title='Xóa ID này';
+      x.onclick=function(ev){ev.stopPropagation();delOne(s,i)};
+      d.append(mkSpan('n',i+1),mkSpan('v',r.code),mkSpan('t',r.time.slice(11)),x);
       d.onclick=function(){copyStr(r.code,'Đã sao chép: '+r.code);d.classList.add('copied');setTimeout(function(){d.classList.remove('copied')},900)};
       box.appendChild(d);
     });

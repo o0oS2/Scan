@@ -54,7 +54,7 @@ button:disabled{opacity:.45}
 .lh{display:flex;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--bd);font-weight:600}
 .item{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd);align-items:flex-start}
 .item:last-child{border-bottom:0}
-.item.click{cursor:pointer}.item.click:active{background:var(--bg)}
+.item.click{cursor:pointer;transition:background .25s}.item.click:active{background:var(--bg)}.item.copied{background:rgba(22,163,74,.2)}.item.copied .v::after{content:" ✓ đã chép";color:var(--ok);font-size:12px;font-weight:600}
 .n{color:var(--mu);min-width:28px;font-variant-numeric:tabular-nums}
 .v{flex:1;word-break:break-all}
 .t{color:var(--mu);font-size:12px;white-space:nowrap}
@@ -65,7 +65,7 @@ footer{text-align:center;color:var(--mu);font-size:13px;padding:20px 0 8px}
 .srow{display:grid;grid-template-columns:34px 1fr auto;grid-template-areas:"n f c" ". nt nt";gap:2px 10px;padding:12px 14px;border-bottom:1px solid var(--bd);align-items:center}
 .srow:last-child{border-bottom:0}
 .srow.it{cursor:pointer}.srow.it:active{background:var(--bg)}
-.srow .n{grid-area:n}.srow .f{grid-area:f;word-break:break-all;font-weight:600}.srow .c{grid-area:c;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--mu);white-space:nowrap}
+.srow .n{grid-area:n}.srow .f{grid-area:f;font-weight:600;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;min-width:0}.srow .f .dt{font-weight:400;font-size:13px;color:var(--mu);white-space:nowrap;font-variant-numeric:tabular-nums}.srow .c{grid-area:c;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--mu);white-space:nowrap}
 .srow .nt{grid-area:nt;color:var(--mu);font-size:14px;word-break:break-word}
 .shead{background:var(--bg);font-size:13px;color:var(--mu);font-weight:600;padding:8px 14px}
 .shead .nt{display:none}
@@ -114,9 +114,9 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 
   <!-- TAB 2 -->
   <section id="p2" hidden>
-\1
+    <div id="listView">
       <div class="list">
-        <div class="srow shead"><span class="n">STT</span><span class="f">Tên danh sách</span><span class="c">Số mã · Ngày giờ</span><span class="nt">Ghi chú</span></div>
+        <div class="srow shead"><span class="n">STT</span><span class="f">Tên danh sách · 📅 Ngày giờ</span><span class="c">Số mã</span><span class="nt">Ghi chú</span></div>
         <div id="srows"></div>
       </div>
     </div>
@@ -178,7 +178,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   try{localStorage.removeItem('qlid_gh');localStorage.removeItem('qlid_key')}catch(e){}   // xoá token cũ lưu trên máy (nếu có)
   var cfg={repo:'',branch:'main',dir:'scans'};
   var srv={ready:false};
-  var NAME_A=4,NAME_B=10;   // tên danh sách = NAME_A ký tự đầu - NAME_B ký tự tiếp theo của Lot ID đầu tiên
+  var NAME_A=4,NAME_B=6;    // tên danh sách = NAME_A ký tự đầu - NAME_B ký tự tiếp theo của Lot ID đầu tiên
   var cur=null,seen={},detail=null,tab=1;
 
   function pad(n){return n<10?'0'+n:n}
@@ -436,7 +436,8 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     if(!sessions.length){box.innerHTML='<div class="empty">Chưa có danh sách nào. Quét mã đầu tiên là tự lưu.</div>';return}
     sessions.forEach(function(s,i){
       var r=document.createElement('div');r.className='srow it';
-      r.append(mkSpan('n',i+1),mkSpan('f',s.file),mkSpan('c','Số mã: '+s.codes.length+'   '+fmt(s.updated||s.created)),mkSpan('nt',s.note||'—'));
+      var f=mkSpan('f','');f.append(mkSpan('nm',s.file),mkSpan('dt','📅 '+fmt(s.created)));
+      r.append(mkSpan('n',i+1),f,mkSpan('c',s.codes.length+' mã'),mkSpan('nt',s.note||'—'));
       r.onclick=function(){openDetail(s)};
       box.appendChild(r);
     });
@@ -454,7 +455,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     s.codes.forEach(function(r,i){
       var d=document.createElement('div');d.className='item click';
       d.append(mkSpan('n',i+1),mkSpan('v',r.code),mkSpan('t',r.time.slice(11)));
-      d.onclick=function(){copyStr(r.code,'Đã sao chép: '+r.code)};
+      d.onclick=function(){copyStr(r.code,'Đã sao chép: '+r.code);d.classList.add('copied');setTimeout(function(){d.classList.remove('copied')},900)};
       box.appendChild(d);
     });
   }

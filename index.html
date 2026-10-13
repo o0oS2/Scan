@@ -137,7 +137,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       </div>
     </div>
   </section>
-  <footer>© Đức Trung · v13</footer>
+  <footer>© Đức Trung · v14</footer>
 </div>
 
 <div class="bar" id="bar">
@@ -528,10 +528,42 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
         }
       }
     }
-    // Không chia sẻ được → tải thẳng file xuống (không báo lỗi đáng sợ)
+    // Không chia sẻ file được → hiện bảng lựa chọn (mỗi nút bấm là một lần "người dùng bấm" mới nên được phép chia sẻ)
+    if(tried&&navigator.share){showShareFallback(s,file);return}
     saveBlob(file.blob,file.name);
-    if(tried&&err&&err.name==='NotAllowedError')toast('Đã tải file '+file.name+' về máy (Tải xuống). Trình duyệt chặn mở bảng chia sẻ file.',5000);
-    else toast('Đã tải file '+file.name+' ('+whyNoShare(err)+')',5000);
+    toast('Đã tải file '+file.name+' ('+whyNoShare(err)+')',5000);
+  }
+  function csvFile(s){
+    var q=function(v){return '"'+String(v).replace(/"/g,'""')+'"'};
+    var csv='\ufeff'+['STT,Nội dung mã,Thời gian'].concat(s.codes.map(function(r,i){return [i+1,q(r.code),q(r.time||'')].join(',')})).join('\r\n');
+    return new File([csv],(s.file||'qr')+'.csv',{type:'text/csv'});
+  }
+  function showShareFallback(s,file){
+    var old=document.getElementById('shFb');if(old)old.remove();
+    var ov=document.createElement('div');ov.id='shFb';
+    ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;padding:16px';
+    var box=document.createElement('div');
+    box.style.cssText='background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:16px;padding:16px;width:100%;max-width:520px';
+    box.innerHTML='<div style="font-weight:700;margin-bottom:4px">Máy chặn chia sẻ file Excel</div><div style="color:var(--mu);font-size:14px;margin-bottom:8px">Chọn cách khác:</div>';
+    function add(label,cls,fn){
+      var b=document.createElement('button');b.textContent=label;b.className=cls;b.style.cssText='width:100%;margin-top:8px';
+      b.onclick=function(){fn(b)};box.appendChild(b);
+    }
+    add('📝 Chia sẻ dạng văn bản (mỗi mã 1 dòng)','',function(){ov.remove();shareText()});
+    add('📄 Chia sẻ file CSV (mở được bằng Excel)','sec',async function(){
+      var f=csvFile(s);
+      try{
+        if(navigator.canShare&&!navigator.canShare({files:[f]}))throw new Error('no');
+        await navigator.share({files:[f]});ov.remove();
+      }catch(e){
+        if(e&&e.name==='AbortError')return;
+        saveBlob(f,f.name);ov.remove();toast('Không chia sẻ được CSV, đã tải file '+f.name,4000);
+      }
+    });
+    add('💾 Tải file Excel về máy','sec',function(){saveBlob(file.blob,file.name);ov.remove();toast('Đã tải file '+file.name+' (mục Tải xuống)',4000)});
+    add('Đóng','sec',function(){ov.remove()});
+    ov.onclick=function(e){if(e.target===ov)ov.remove()};
+    ov.appendChild(box);document.body.appendChild(ov);
   }
   async function copyStr(str,okMsg){
     try{await navigator.clipboard.writeText(str);toast(okMsg)}

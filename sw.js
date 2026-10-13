@@ -1,4 +1,4 @@
-const CACHE='quet-lot-id-v3';
+const CACHE='quet-lot-id-v4';
 const LIBS=['https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js','https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'];
 const LOCAL=['./','index.html','manifest.json','icons/icon-192.png','icons/icon-512.png','icons/icon-maskable-512.png','icons/apple-touch-icon.png'];
 self.addEventListener('install',e=>{
@@ -11,12 +11,23 @@ self.addEventListener('activate',e=>{
   e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(n=>n!==CACHE).map(n=>caches.delete(n)))).then(()=>self.clients.claim()));
 });
 self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET')return;
-  e.respondWith(caches.match(e.request).then(hit=>{
-    const net=fetch(e.request).then(r=>{
-      if(r&&r.ok){const cp=r.clone();caches.open(CACHE).then(c=>c.put(e.request,cp))}
+  const req=e.request;
+  if(req.method!=='GET')return;
+  const url=new URL(req.url);
+  const isLib=LIBS.includes(req.url);
+  // Không can thiệp vào request khác (vd: api.github.com) để luôn lấy dữ liệu mới
+  if(url.origin!==location.origin&&!isLib)return;
+  if(isLib){
+    // thư viện: ưu tiên cache
+    e.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(r=>{
+      if(r&&r.ok){const cp=r.clone();caches.open(CACHE).then(c=>c.put(req,cp))}
       return r;
-    }).catch(()=>hit);
-    return hit||net;
-  }));
+    })));
+    return;
+  }
+  // file của app: ưu tiên mạng (luôn nhận bản mới), mất mạng thì dùng cache
+  e.respondWith(fetch(req).then(r=>{
+    if(r&&r.ok){const cp=r.clone();caches.open(CACHE).then(c=>c.put(req,cp))}
+    return r;
+  }).catch(()=>caches.match(req).then(hit=>hit||caches.match('index.html'))));
 });

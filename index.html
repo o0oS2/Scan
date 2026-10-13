@@ -472,34 +472,36 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     document.body.appendChild(a);a.click();a.remove();
     setTimeout(function(){URL.revokeObjectURL(a.href)},4000);
   }
+  function buildFile(s){   // chạy đồng bộ để mở bảng chia sẻ ngay trong lần bấm
+    var base=s.file||('qr_'+Date.now());
+    if(typeof XLSX!=='undefined'){
+      var aoa=[['Ghi chú',s.note||''],[],['STT','Nội dung mã','Thời gian']].concat(s.codes.map(function(r,i){return [i+1,String(r.code),r.time||'']}));
+      var ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:8},{wch:50},{wch:20}];
+      var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'QR');
+      var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+      return {name:base+'.xlsx',blob:new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})};
+    }
+    // không tải được thư viện Excel (mất mạng...) → xuất CSV, Excel vẫn mở được
+    var q=function(v){return '"'+String(v).replace(/"/g,'""')+'"'};
+    var csv='\ufeff'+['STT,Nội dung mã,Thời gian'].concat(s.codes.map(function(r,i){return [i+1,q(r.code),q(r.time||'')].join(',')})).join('\r\n');
+    toast('Chưa tải được thư viện Excel, xuất file CSV');
+    return {name:base+'.csv',blob:new Blob([csv],{type:'text/csv;charset=utf-8'})};
+  }
   async function exportXlsx(s){
     if(!s||!s.codes.length)return;
-    var base=(s.file||'qr_'+Date.now()),blob,name;
+    var file;
     try{
-      if(await loadXlsx()){
-        var aoa=[['Ghi chú',s.note||''],[],['STT','Nội dung mã','Thời gian']].concat(s.codes.map(function(r,i){return [i+1,String(r.code),r.time||'']}));
-        var ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:8},{wch:50},{wch:20}];
-        var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'QR');
-        var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
-        name=base+'.xlsx';
-        blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-      }else{
-        // không tải được thư viện Excel (mất mạng...) → xuất CSV, Excel vẫn mở được
-        var q=function(v){return '"'+String(v).replace(/"/g,'""')+'"'};
-        var csv='\ufeff'+['STT,Nội dung mã,Thời gian'].concat(s.codes.map(function(r,i){return [i+1,q(r.code),q(r.time||'')].join(',')})).join('\r\n');
-        name=base+'.csv';
-        blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
-        toast('Chưa tải được thư viện Excel, xuất file CSV');
-      }
+      if(typeof XLSX==='undefined')await loadXlsx();   // thường đã có sẵn → không await, bảng chia sẻ mở tức thì
+      file=buildFile(s);
     }catch(e){toast('Lỗi tạo file: '+(e&&e.message||e));return}
     try{
-      var f=new File([blob],name,{type:blob.type});
-      if(navigator.canShare&&navigator.canShare({files:[f]})){
-        try{await navigator.share({files:[f],title:name});return}
-        catch(e){if(e&&e.name==='AbortError')return}   // lỗi khác → tải thẳng xuống
+      var f=new File([file.blob],file.name,{type:file.blob.type});
+      if(navigator.share){
+        try{await navigator.share({files:[f],title:file.name});return}   // bảng chia sẻ: gửi đi hoặc lưu vào máy
+        catch(e){if(e&&e.name==='AbortError')return}                    // lỗi khác → tải thẳng xuống
       }
-      saveBlob(blob,name);
-      if(name.slice(-4)==='xlsx')toast('Đã xuất file '+name);
+      saveBlob(file.blob,file.name);
+      toast('Đã tải file '+file.name);
     }catch(e){toast('Không xuất được file: '+(e&&e.message||e))}
   }
   async function copyStr(str,okMsg){

@@ -168,16 +168,11 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 </div>
 
 <dialog id="dlg">
-  <h3 style="margin:0 0 6px">⚙ Lưu lên GitHub</h3>
-  <label for="gRepo">Repo (chủ-sở-hữu/tên-repo)</label>
-  <input type="text" id="gRepo" placeholder="ductrung/du-lieu-quet" autocomplete="off" autocapitalize="off">
-  <label for="gToken">Token (fine-grained, quyền Contents: Read and write)</label>
-  <input type="password" id="gToken" placeholder="github_pat_…" autocomplete="off">
-  <label for="gBranch">Nhánh</label>
-  <input type="text" id="gBranch" placeholder="main" autocomplete="off" autocapitalize="off">
-  <label for="gDir">Thư mục lưu file</label>
-  <input type="text" id="gDir" placeholder="scans" autocomplete="off" autocapitalize="off">
-  <div class="hint">Token chỉ lưu trên thiết bị này. Nên tạo token chỉ cấp cho đúng 1 repo và dùng repo <b>private</b> vì dữ liệu Lot ID sẽ nằm trong repo.</div>
+  <h3 style="margin:0 0 6px">⚙ Đồng bộ GitHub</h3>
+  <div class="hint" id="gInfo" style="margin-bottom:8px"></div>
+  <label for="gKey">Mã truy cập</label>
+  <input type="password" id="gKey" placeholder="Nhập mã truy cập (nếu có)" autocomplete="off">
+  <div class="hint">Token GitHub được giữ bí mật trên server (Vercel), không nằm trên điện thoại. Dữ liệu tự lưu và tự đồng bộ.</div>
   <div class="row" style="margin-bottom:0">
     <button class="sec sm" id="gCancel">Đóng</button>
     <button class="sm" id="gSave">Lưu &amp; đồng bộ</button>
@@ -196,10 +191,10 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
   };
   var sessions=LS.get('qlid_sessions',[]);   // [{file,note,created,updated,codes:[{code,time}],sha,synced,err}]
-  // Điền sẵn repo ở đây (vd: 'ductrung/du-lieu-quet') để mỗi máy chỉ cần nhập token 1 lần
-  var DEF={repo:'',branch:'main',dir:'scans'};
-  var saved=LS.get('qlid_gh',{});
-  var cfg={repo:saved.repo||DEF.repo,token:saved.token||'',branch:saved.branch||DEF.branch,dir:saved.dir==null?DEF.dir:saved.dir};
+  // Cấu hình repo/token nằm trên server (Vercel env). Máy chỉ giữ "mã truy cập" (nếu server yêu cầu).
+  try{localStorage.removeItem('qlid_gh')}catch(e){}   // xoá token cũ lưu trên máy (nếu có)
+  var cfg={repo:'',branch:'main',dir:'scans',key:LS.get('qlid_key','')};
+  var srv={ready:false,needKey:false,authed:false};
   var cur=null,seen={},detail=null,tab=1;
 
   function pad(n){return n<10?'0'+n:n}
@@ -266,6 +261,8 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       d.append(n,v,t,x);box.appendChild(d);
     })(i)}
   }
+  var saveT=null;
+  function scheduleSave(){clearTimeout(saveT);saveT=setTimeout(function(){if(cur&&cur.file)commit(cur)},1500)}
   function onCode(code){
     var t=Date.now();
     if(seen[code]){
@@ -274,6 +271,8 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     }
     seen[code]=1;lastCode=code;lastAt=t;
     cur.codes.push({code:code,time:now()});
+    if(!cur.file){cur.note=$('note').value.trim();cur.file=mkName();sessions.unshift(cur)}
+    cur.updated=Date.now();cur.synced=false;persist();scheduleSave();   // tự lưu máy ngay, đẩy GitHub sau ~1.5s
     feedback();render();
     setStatus('✓ Đã ghi mã #'+cur.codes.length+': '+code,'ok');
   }
@@ -336,6 +335,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}
     vid.srcObject=null;
     if(!codes().length){ui('idle');setStatus('Đã dừng. Chưa có mã nào nên không lưu file.');return}
+    clearTimeout(saveT);
     cur.note=$('note').value.trim();
     if(!cur.file){cur.file=mkName();sessions.unshift(cur)}
     commit(cur);
@@ -349,13 +349,26 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     renderSessions();renderDetail();
     queuePush(s);
   }
-  function ghOk(){return !!(cfg.repo&&cfg.token)}
+  function ghOk(){return srv.ready&&srv.authed}
   function dirPath(){return (cfg.dir||'').replace(/^\/+|\/+$/g,'')}
   function enc(p){return p.split('/').map(encodeURIComponent).join('/')}
   function api(path,opt){
     opt=opt||{};
-    opt.headers=Object.assign({'Authorization':'Bearer '+cfg.token,'Accept':'application/vnd.github+json'},opt.headers||{});
-    return fetch('https://api.github.com/repos/'+cfg.repo+path,opt);
+    var h=Object.assign({'Accept':'application/vnd.github+json'},opt.headers||{});
+    if(opt.body)h['Content-Type']='application/json';
+    if(cfg.key)h['x-access-key']=cfg.key;
+    opt.headers=h;opt.cache='no-store';
+    return fetch('/api/gh?p='+encodeURIComponent(path),opt);
+  }
+  async function initServer(){
+    try{
+      var r=await fetch('/api/gh?ping=1',{cache:'no-store',headers:cfg.key?{'x-access-key':cfg.key}:{}});
+      if(!r.ok)throw new Error('ping');
+      var j=await r.json();
+      if(!j.configured)throw new Error('cfg');
+      srv.ready=true;srv.needKey=!!j.needKey;srv.authed=!!j.authed;
+      if(j.repo){cfg.repo=j.repo;cfg.branch=j.branch;cfg.dir=j.dir}
+    }catch(e){srv.ready=false;srv.authed=false}
   }
   function filePath(s){return (dirPath()?dirPath()+'/':'')+s.file+'.json'}
   function ref(){return 'ref='+encodeURIComponent(cfg.branch||'main')}
@@ -369,7 +382,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       var body={message:'scan '+s.file,content:b64(payload(s)),branch:cfg.branch||'main'};
       if(s.sha)body.sha=s.sha;
       var r=await api('/contents/'+enc(filePath(s)),{method:'PUT',body:JSON.stringify(body)});
-      if(r.ok){var j=await r.json();s.sha=j.content.sha;s.synced=true;s.err='';persist();return}
+      if(r.ok){var j=await r.json();s.sha=j.content.sha;s.synced=true;s.syncedAt=Date.now();s.err='';persist();return}
       if(a===0&&(r.status===409||r.status===422)){
         var g=await api('/contents/'+enc(filePath(s))+'?'+ref());
         if(g.ok){s.sha=(await g.json()).sha;continue}
@@ -385,6 +398,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   }
   async function pull(){
     var base='/contents'+(dirPath()?'/'+enc(dirPath()):'');
+    var t0=Date.now();
     var r=await api(base+'?'+ref());
     if(r.status===404)return 0;
     if(!r.ok)throw new Error(r.status+' '+(await r.text()).slice(0,100));
@@ -402,6 +416,10 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       var o={file:name,note:d.note||'',created:Date.parse(d.created)||Date.now(),updated:Date.parse(d.updated)||0,codes:d.codes||[],sha:f.sha,synced:true,err:''};
       if(loc){Object.assign(loc,o)}else{sessions.push(o);added++}
     }
+    // file đã bị xoá trên GitHub (từ máy khác) thì xoá luôn ở máy này
+    var names={};list.forEach(function(f){names[f.name.replace(/\.json$/,'')]=1});
+    sessions=sessions.filter(function(s){return s===cur||!s.synced||!s.sha||names[s.file]||(s.syncedAt||0)>=t0});
+    if(detail&&sessions.indexOf(detail)<0)closeDetail();
     sessions.sort(function(a,b){return b.created-a.created});
     persist();
     return added;
@@ -439,7 +457,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   function renderSessions(){
     $('tcnt').textContent=sessions.length;
     var un=sessions.filter(function(s){return !s.synced}).length;
-    $('syncInfo').textContent=ghOk()?('☁ '+cfg.repo+(un?' · '+un+' file chưa đồng bộ':' · đã đồng bộ')):'Chưa nối GitHub — dữ liệu chỉ lưu trên máy';
+    $('syncInfo').textContent=ghOk()?('☁ '+cfg.repo+(un?' · '+un+' file chưa đồng bộ':' · tự đồng bộ ✓')):(srv.ready&&!srv.authed?'🔒 Cần mã truy cập — bấm ⚙ Cài đặt':'Chưa nối server — dữ liệu chỉ lưu trên máy');
     var box=$('srows');box.innerHTML='';
     if(!sessions.length){box.innerHTML='<div class="empty">Chưa có file nào. Quét xong bấm “Dừng &amp; lưu”.</div>';return}
     sessions.forEach(function(s,i){
@@ -513,23 +531,17 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 
   /* ---------- Cài đặt GitHub ---------- */
   function openSettings(){
-    $('gRepo').value=cfg.repo||'';$('gToken').value=cfg.token||'';
-    $('gBranch').value=cfg.branch||'main';$('gDir').value=cfg.dir==null?'scans':cfg.dir;
+    $('gInfo').textContent=srv.ready?('Repo: '+(cfg.repo||'(chưa xác thực)')+(cfg.repo?' · nhánh '+cfg.branch+' · thư mục '+cfg.dir:'')):'Chưa kết nối được server /api/gh (đang chạy local hoặc chưa cấu hình Vercel).';
+    $('gKey').value=cfg.key||'';
     $('dlg').showModal();
   }
   $('gCancel').onclick=function(){$('dlg').close()};
   $('gSave').onclick=async function(){
-    var repo=$('gRepo').value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'').replace(/\/+$/,'');
-    cfg={repo:repo,token:$('gToken').value.trim(),branch:$('gBranch').value.trim()||'main',dir:$('gDir').value.trim()};
-    LS.set('qlid_gh',cfg);
-    if(ghOk()){
-      try{
-        var r=await api('');
-        if(!r.ok){toast('Repo/token không hợp lệ ('+r.status+')');return}
-      }catch(e){toast('Không kết nối được GitHub');return}
-    }
+    cfg.key=$('gKey').value.trim();LS.set('qlid_key',cfg.key);
+    await initServer();
+    if(!srv.ready){toast('Chưa kết nối được server /api/gh');return}
+    if(!srv.authed){toast('Mã truy cập không đúng');return}
     $('dlg').close();
-    sessions.forEach(function(s){if(!s.synced)s.sha=s.sha||''});
     syncAll(true);
   };
 
@@ -574,10 +586,10 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   });
   document.addEventListener('visibilitychange',function(){if(document.hidden&&running)stop()});
   // tự động đẩy lại các file chưa lên repo
-  function autoSync(){if(ghOk()&&!running&&sessions.some(function(s){return !s.synced}))syncAll(false)}
+  function autoSync(){if(ghOk()&&!running&&!document.hidden)syncAll(false)}
   window.addEventListener('online',autoSync);
   document.addEventListener('visibilitychange',function(){if(!document.hidden)autoSync()});
-  setInterval(autoSync,60000);
+  setInterval(autoSync,30000);
   var dip=null;
   window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();dip=e;show('ctlInstall',true)});
   $('bInstall').onclick=async function(){if(!dip)return;dip.prompt();try{await dip.userChoice}catch(_){}dip=null;show('ctlInstall',false)};
@@ -585,7 +597,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   window.addEventListener('resize',fitBar);
 
   ui('idle');render();renderSessions();
-  if(ghOk())syncAll(false);
+  initServer().then(function(){if(srv.ready&&srv.needKey&&!srv.authed)openSettings();renderSessions();syncAll(false)});
   if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
 })();
 </script>

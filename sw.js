@@ -1,4 +1,4 @@
-const CACHE='quet-lot-id-v4';
+const CACHE='quet-lot-id-v5';
 const LIBS=['https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js','https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'];
 const LOCAL=['./','index.html','manifest.json','icons/icon-192.png','icons/icon-512.png','icons/icon-maskable-512.png','icons/apple-touch-icon.png'];
 self.addEventListener('install',e=>{
@@ -17,6 +17,8 @@ self.addEventListener('fetch',e=>{
   const isLib=LIBS.includes(req.url);
   // Không can thiệp vào request khác (vd: api.github.com) để luôn lấy dữ liệu mới
   if(url.origin!==location.origin&&!isLib)return;
+  // API đồng bộ GitHub: luôn gọi thẳng server, không cache
+  if(url.pathname.startsWith('/api/'))return;
   if(isLib){
     // thư viện: ưu tiên cache
     e.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(r=>{

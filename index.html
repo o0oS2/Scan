@@ -77,6 +77,7 @@ footer{text-align:center;color:var(--mu);font-size:13px;padding:20px 0 8px}
 .acts button{min-width:0;padding:10px 2px;font-size:13px;line-height:1.3;grid-column:span 3}
 .acts #dScan,.acts #dDel{grid-column:span 6;font-size:15px;padding:12px 6px;white-space:nowrap}
 .r4{flex-wrap:nowrap}
+@media (hover:hover) and (pointer:fine){.mob{display:none!important}.acts #dScan,.acts #dDel{grid-column:span 3}}
 .r4 button{min-width:0;flex:1;padding:10px 2px;font-size:13px;line-height:1.3}
 .dgt{color:var(--dg)}
 .meta{font-size:13px;color:var(--mu);margin:8px 0}
@@ -128,8 +129,8 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       <input type="text" id="dNote" placeholder="Ghi chú" maxlength="200" autocomplete="off">
       <div class="acts">
         <button class="sec" id="dCopy">📋<br>Sao chép</button>
-        <button class="sec" id="dShare">📤<br>Chia sẻ</button>
-        <button class="ok" id="dShareFile">📤<br>Chia sẻ file</button>
+        <button class="sec mob" id="dShare">📤<br>Chia sẻ</button>
+        <button class="ok mob" id="dShareFile">📤<br>Chia sẻ file</button>
         <button class="ok" id="dDlFile">💾<br>Tải file</button>
         <button id="dScan">▶ Quét tiếp</button>
         <button class="sec dgt" id="dDel">🗑 Xóa</button>
@@ -140,7 +141,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       </div>
     </div>
   </section>
-  <footer>© Đức Trung</footer>
+  <footer>© Đức Trung · v19</footer>
 </div>
 
 <div class="bar" id="bar">
@@ -154,8 +155,8 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       </div>
       <div class="row r4">
         <button class="sec" id="bCopy">📋<br>Sao chép</button>
-        <button class="sec" id="bShare">📤<br>Chia sẻ</button>
-        <button class="ok" id="bShareFile">📤<br>Chia sẻ file</button>
+        <button class="sec mob" id="bShare">📤<br>Chia sẻ</button>
+        <button class="ok mob" id="bShareFile">📤<br>Chia sẻ file</button>
         <button class="ok" id="bDlFile">💾<br>Tải file</button>
       </div>
     </div>

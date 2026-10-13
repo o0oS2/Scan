@@ -77,7 +77,8 @@ footer{text-align:center;color:var(--mu);font-size:13px;padding:20px 0 8px}
 .acts button{min-width:0;padding:10px 2px;font-size:13px;line-height:1.3;grid-column:span 3}
 .acts #dScan,.acts #dDel{grid-column:span 6;font-size:15px;padding:12px 6px;white-space:nowrap}
 .r4{flex-wrap:nowrap}
-@media (hover:hover) and (pointer:fine){.mob{display:none!important}.acts #dScan,.acts #dDel{grid-column:span 3}}
+.desk{display:none;margin-top:10px;border-color:var(--ok,#4ade80)!important;font-size:18px}
+@media (hover:hover) and (pointer:fine){.desk.on{display:block}.cam,.cam.on{display:none!important}.mob{display:none!important}.acts #dScan,.acts #dDel{grid-column:span 3}}
 .r4 button{min-width:0;flex:1;padding:10px 2px;font-size:13px;line-height:1.3}
 .dgt{color:var(--dg)}
 .meta{font-size:13px;color:var(--mu);margin:8px 0}
@@ -111,6 +112,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   <section id="p1">
     <input type="text" id="note" placeholder="📝 Ghi chú (vd: nhập kho lô A, kiểm kê…)" maxlength="200" autocomplete="off">
     <div class="cam" id="cam"><video id="vid" playsinline muted></video><div class="frame" id="frame"></div></div>
+    <input type="text" id="gun" class="desk" placeholder="⛶ Quét mã" autocomplete="off" autocapitalize="off" spellcheck="false">
     <div class="status" id="status">Bấm “Quét” để mở camera.</div>
     <div class="list">
       <div class="lh"><span>Mã đang quét</span><span id="cnt">0</span></div>
@@ -141,7 +143,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       </div>
     </div>
   </section>
-  <footer>© Đức Trung</footer>
+  <footer>© Đức Trung · v20</footer>
 </div>
 
 <div class="bar" id="bar">
@@ -170,6 +172,8 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 (function(){
   var $=function(i){return document.getElementById(i)};
   var vid=$('vid'),cam=$('cam'),frame=$('frame'),cv=$('cv'),ctx=cv.getContext('2d',{willReadFrequently:true});
+  var DESK=window.matchMedia&&window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+  function camText(){return DESK?'Bấm “Quét” rồi dùng súng quét mã.':'Bấm “Quét” để mở camera.'}
   var stream=null,running=false,timer=null,lastCode='',lastAt=0,audioCtx=null;
   var LS={
     get:function(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
@@ -196,6 +200,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   function ui(mode){
     show('ctl',mode==='idle');show('ctlScan',mode==='scan');show('ctlStopped',mode==='stopped');
     cam.classList.toggle('on',mode==='scan');
+    $('gun').classList.toggle('on',mode==='scan');
     var has=codes().length>0;
     ['bShareFile','bDlFile','bShare','bCopy'].forEach(function(i){$(i).disabled=!has});
     fitBar();
@@ -293,7 +298,14 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     if(e.name==='NotFoundError')return 'Không tìm thấy camera trên thiết bị.';
     return (e.name||'Lỗi')+': '+(e.message||'');
   }
+  function startGun(){
+    if(!cur)newSession(false);
+    running=true;ui('scan');
+    setStatus('Sẵn sàng: dùng súng bắn mã (con trỏ ở ô xanh phía trên).');
+    var g=$('gun');g.value='';g.focus();
+  }
   async function start(){
+    if(DESK){startGun();return}
     if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
       setStatus('Không dùng được camera: '+(window.isSecureContext?'trình duyệt quá cũ, hãy dùng Chrome/Safari mới.':'trang chưa chạy HTTPS.'),'warn');return}
     if(typeof jsQR==='undefined'){setStatus('Chưa tải được thư viện quét QR. Kiểm tra mạng rồi tải lại trang.','warn');return}
@@ -558,6 +570,29 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   $('t1').onclick=function(){showTab(1)};
   function openList(){if(detail)closeDetail();showTab(2)}
   $('t2').onclick=openList;
+  $('gun').addEventListener('keydown',function(e){
+    if(e.key==='Enter'||e.key==='Tab'){
+      e.preventDefault();
+      var v=this.value.trim();this.value='';
+      if(v&&running)onCode(v);
+    }
+  });
+  // Giữ con trỏ luôn ở ô súng khi đang quét (trừ khi đang gõ ghi chú hoặc bấm nút)
+  function keepGun(){
+    if(!DESK||!running||tab!==1)return;
+    var a=document.activeElement;
+    if(a&&a.id==='note')return;
+    if(a!==$('gun'))$('gun').focus();
+  }
+  document.addEventListener('click',function(e){if(e.target.tagName!=='INPUT'&&e.target.tagName!=='BUTTON')setTimeout(keepGun,0)});
+  document.addEventListener('keydown',function(e){
+    if(!DESK||!running||tab!==1)return;
+    var a=document.activeElement;
+    if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;
+    if(e.key.length===1&&!e.ctrlKey&&!e.metaKey&&!e.altKey)$('gun').focus();
+  });
+  $('note').addEventListener('keydown',function(e){if(e.key==='Enter'&&DESK&&running){e.preventDefault();$('gun').focus()}});
+  setStatus(camText());
   $('bStart').onclick=start;
   $('bResume').onclick=start;
   $('bNew').onclick=function(){newSession(true);render();start()};
@@ -584,7 +619,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     if(!detail||!confirm('Xoá file '+detail.file+' ('+detail.codes.length+' mã)?'))return;
     var s=detail,okRemote=await delRemote(s);
     sessions.splice(sessions.indexOf(s),1);persist();
-    if(s===cur){cur=null;seen={};$('note').value='';render();ui('idle');setStatus('Bấm “Quét” để mở camera.')}
+    if(s===cur){cur=null;seen={};$('note').value='';render();ui('idle');setStatus(camText())}
     closeDetail();
     toast(okRemote?'Đã xoá':'Đã xoá trên máy, chưa xoá được trên GitHub');
   };

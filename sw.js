@@ -1,4 +1,4 @@
-const CACHE='quet-lot-id-v17';
+const CACHE='quet-lot-id-v18';
 const LIBS=['https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'];
 const LOCAL=['./','index.html','manifest.json','icons/icon-192.png','icons/icon-512.png','icons/icon-maskable-512.png','icons/apple-touch-icon.png'];
 self.addEventListener('install',e=>{

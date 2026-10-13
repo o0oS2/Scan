@@ -13,7 +13,6 @@
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);
 --bg:#f5f6f8;--card:#fff;--tx:#1b1f24;--mu:#6b7280;--bd:#e3e6ea;--pr:#2563eb;--ok:#16a34a;--dg:#dc2626}
@@ -141,7 +140,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       </div>
     </div>
   </section>
-  <footer>© Đức Trung · v16</footer>
+  <footer>© Đức Trung · v17</footer>
 </div>
 
 <div class="bar" id="bar">
@@ -472,34 +471,60 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   }
 
   /* ---------- Xuất / chia sẻ / sao chép ---------- */
-  function loadXlsx(){
-    if(typeof XLSX!=='undefined')return Promise.resolve(true);
-    return new Promise(function(ok){
-      var sc=document.createElement('script');
-      sc.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
-      sc.onload=function(){ok(typeof XLSX!=='undefined')};sc.onerror=function(){ok(false)};
-      document.head.appendChild(sc);
-    });
-  }
   function saveBlob(blob,name){
     var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;
     document.body.appendChild(a);a.click();a.remove();
     setTimeout(function(){URL.revokeObjectURL(a.href)},4000);
   }
-  function buildFile(s){   // chạy đồng bộ để mở bảng chia sẻ ngay trong lần bấm
+  /* ---- Tự tạo file .xlsx (zip không nén) → không cần thư viện ngoài, chạy được cả khi mất mạng ---- */
+  var CRC_T=null;
+  function crc32(u8){
+    if(!CRC_T){CRC_T=new Uint32Array(256);for(var n=0;n<256;n++){var c=n;for(var k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;CRC_T[n]=c>>>0}}
+    var c=0xFFFFFFFF;for(var i=0;i<u8.length;i++)c=CRC_T[(c^u8[i])&255]^(c>>>8);
+    return (c^0xFFFFFFFF)>>>0;
+  }
+  function zipStore(files){   // files: [{name, data(string)}]
+    var enc=new TextEncoder(),parts=[],cen=[],off=0;
+    function w16(a,v){a.push(v&255,(v>>>8)&255)}
+    function w32(a,v){a.push(v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255)}
+    files.forEach(function(f){
+      var nm=enc.encode(f.name),d=enc.encode(f.data),crc=crc32(d),h=[];
+      w32(h,0x04034b50);w16(h,20);w16(h,0x0800);w16(h,0);w16(h,0);w16(h,0x21);w32(h,crc);w32(h,d.length);w32(h,d.length);w16(h,nm.length);w16(h,0);
+      parts.push(new Uint8Array(h),nm,d);
+      var c=[];
+      w32(c,0x02014b50);w16(c,20);w16(c,20);w16(c,0x0800);w16(c,0);w16(c,0);w16(c,0x21);w32(c,crc);w32(c,d.length);w32(c,d.length);w16(c,nm.length);w16(c,0);w16(c,0);w16(c,0);w16(c,0);w32(c,0);w32(c,off);
+      cen.push(new Uint8Array(c),nm);
+      off+=h.length+nm.length+d.length;
+    });
+    var cs=0;cen.forEach(function(x){cs+=x.length});
+    var e=[];w32(e,0x06054b50);w16(e,0);w16(e,0);w16(e,files.length);w16(e,files.length);w32(e,cs);w32(e,off);w16(e,0);
+    return new Blob(parts.concat(cen,[new Uint8Array(e)]),{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  }
+  function xe(v){return String(v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function colL(i){return String.fromCharCode(65+i)}
+  function makeXlsx(aoa){
+    var rows=aoa.map(function(r,ri){
+      if(!r.length)return '<row r="'+(ri+1)+'"/>';
+      return '<row r="'+(ri+1)+'">'+r.map(function(v,ci){
+        var ref=colL(ci)+(ri+1);
+        if(typeof v==='number')return '<c r="'+ref+'"><v>'+v+'</v></c>';
+        return '<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+xe(v)+'</t></is></c>';
+      }).join('')+'</row>';
+    }).join('');
+    var sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="1" width="8" customWidth="1"/><col min="2" max="2" width="50" customWidth="1"/><col min="3" max="3" width="20" customWidth="1"/></cols><sheetData>'+rows+'</sheetData></worksheet>';
+    var X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    return zipStore([
+      {name:'[Content_Types].xml',data:X+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'},
+      {name:'_rels/.rels',data:X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+      {name:'xl/workbook.xml',data:X+'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="QR" sheetId="1" r:id="rId1"/></sheets></workbook>'},
+      {name:'xl/_rels/workbook.xml.rels',data:X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'},
+      {name:'xl/worksheets/sheet1.xml',data:sheet}
+    ]);
+  }
+  function buildFile(s){
     var base=s.file||('qr_'+Date.now());
-    if(typeof XLSX!=='undefined'){
-      var aoa=[['Ghi chú',s.note||''],[],['STT','Nội dung mã','Thời gian']].concat(s.codes.map(function(r,i){return [i+1,String(r.code),r.time||'']}));
-      var ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:8},{wch:50},{wch:20}];
-      var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'QR');
-      var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
-      return {name:base+'.xlsx',blob:new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})};
-    }
-    // không tải được thư viện Excel (mất mạng...) → xuất CSV, Excel vẫn mở được
-    var q=function(v){return '"'+String(v).replace(/"/g,'""')+'"'};
-    var csv='\ufeff'+['STT,Nội dung mã,Thời gian'].concat(s.codes.map(function(r,i){return [i+1,q(r.code),q(r.time||'')].join(',')})).join('\r\n');
-    toast('Chưa tải được thư viện Excel, xuất file CSV');
-    return {name:base+'.csv',blob:new Blob([csv],{type:'text/csv;charset=utf-8'})};
+    var aoa=[['Ghi chú',s.note||''],[],['STT','Nội dung mã','Thời gian']].concat(s.codes.map(function(r,i){return [i+1,String(r.code),r.time||'']}));
+    return {name:base+'.xlsx',blob:makeXlsx(aoa)};
   }
   function whyNoShare(e){
     var ua=navigator.userAgent||'';
@@ -511,7 +536,6 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   async function downloadFile(s){
     if(!s||!s.codes.length)return;
     try{
-      if(typeof XLSX==='undefined')await loadXlsx();
       var file=buildFile(s);
       saveBlob(file.blob,file.name);
       toast('Đã tải file '+file.name+' (mục Tải xuống)',3500);
@@ -523,7 +547,6 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     // Tạo file ĐỒNG BỘ nếu thư viện đã có → giữ nguyên "quyền người dùng" của lần bấm
     var file;
     try{
-      if(typeof XLSX==='undefined')await loadXlsx();
       file=buildFile(s);
     }catch(e){toast('Lỗi tạo file: '+(e&&e.message||e));return}
     var f=null,err=null,tried=false;

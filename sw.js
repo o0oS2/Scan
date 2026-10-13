@@ -1,5 +1,5 @@
-const CACHE='quet-lot-id-v16';
-const LIBS=['https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js','https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'];
+const CACHE='quet-lot-id-v17';
+const LIBS=['https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'];
 const LOCAL=['./','index.html','manifest.json','icons/icon-192.png','icons/icon-512.png','icons/icon-maskable-512.png','icons/apple-touch-icon.png'];
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(async c=>{

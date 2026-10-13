@@ -37,7 +37,7 @@ label{display:block;font-size:13px;color:var(--mu);margin:10px 0 4px}
 .frame{position:absolute;inset:18%;border:3px solid rgba(255,255,255,.85);border-radius:16px;box-shadow:0 0 0 999px rgba(0,0,0,.35);pointer-events:none;transition:border-color .15s}
 .frame.hit{border-color:var(--ok)}
 @media(min-width:700px){.cam{aspect-ratio:16/10}.frame{inset:12% 30%}}
-.status{margin:10px 0;padding:10px 14px;border-radius:12px;background:var(--card);border:1px solid var(--bd);color:var(--mu);font-size:14px;min-height:44px}
+.status{margin:0 0 8px;padding:10px 14px;border-radius:12px;background:var(--card);border:1px solid var(--bd);color:var(--mu);font-size:14px;min-height:44px}
 .status.ok{color:var(--ok);border-color:var(--ok)}
 .status.warn{color:var(--dg);border-color:var(--dg)}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
@@ -113,7 +113,6 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     <input type="text" id="note" placeholder="📝 Ghi chú (vd: nhập kho lô A, kiểm kê…)" maxlength="200" autocomplete="off">
     <div class="cam" id="cam"><video id="vid" playsinline muted></video><div class="frame" id="frame"></div></div>
     <input type="text" id="gun" class="desk" placeholder="⛶ Quét mã" autocomplete="off" autocapitalize="off" spellcheck="false">
-    <div class="status" id="status">Bấm “Quét” để mở camera.</div>
     <div class="list">
       <div class="lh"><span>Mã đang quét</span><span id="cnt">0</span></div>
       <div id="items"><div class="empty">Chưa có mã nào.</div></div>
@@ -143,11 +142,12 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       </div>
     </div>
   </section>
-  <footer>© Đức Trung · v20</footer>
+  <footer>© Đức Trung</footer>
 </div>
 
 <div class="bar" id="bar">
   <div class="bar-in">
+    <div class="status" id="status">Bấm “Quét” để mở camera.</div>
     <div class="row" id="ctl"><button class="big" id="bStart">▶ Quét</button></div>
     <div class="row" id="ctlScan" hidden><button class="dg big" id="bStop">⏹ Dừng</button></div>
     <div id="ctlStopped" hidden>
@@ -173,7 +173,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   var $=function(i){return document.getElementById(i)};
   var vid=$('vid'),cam=$('cam'),frame=$('frame'),cv=$('cv'),ctx=cv.getContext('2d',{willReadFrequently:true});
   var DESK=window.matchMedia&&window.matchMedia('(hover:hover) and (pointer:fine)').matches;
-  function camText(){return DESK?'Bấm “Quét” rồi dùng súng quét mã.':'Bấm “Quét” để mở camera.'}
+  function camText(){return DESK?'Bấm “Quét” rồi dùng máy quét mã.':'Bấm “Quét” để mở camera.'}
   var stream=null,running=false,timer=null,lastCode='',lastAt=0,audioCtx=null;
   var LS={
     get:function(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
@@ -191,7 +191,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   function now(){var d=new Date();return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())}
   function fmt(ts){var d=new Date(ts);return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes())}
   function persist(){LS.set('qlid_sessions',sessions)}
-  function setStatus(t,c){var s=$('status');s.textContent=t;s.className='status'+(c?' '+c:'')}
+  function setStatus(t,c){var s=$('status');s.textContent=t;s.className='status'+(c?' '+c:'');try{fitBar()}catch(e){}}
   function toast(m,ms){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove('on')},ms||1800)}
   function show(id,on){$(id).hidden=!on}
   function fitBar(){document.body.style.paddingBottom=(tab===1?$('bar').offsetHeight+16:24)+'px'}

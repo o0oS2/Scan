@@ -74,9 +74,11 @@ footer{text-align:center;color:var(--mu);font-size:13px;padding:20px 0 8px}
   .srow{grid-template-columns:40px minmax(0,1.2fr) 150px 70px minmax(0,1.5fr);grid-template-areas:"n f d c nt";column-gap:14px}
   .srow .nt{font-size:15px}
 }
-.acts{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:10px 0}
-.acts button{min-width:0;padding:12px 4px;font-size:14px;white-space:nowrap;grid-column:span 2}
-.acts #dScan,.acts #dDel{grid-column:span 3;font-size:15px}
+.acts{display:grid;grid-template-columns:repeat(12,1fr);gap:8px;margin:10px 0}
+.acts button{min-width:0;padding:10px 2px;font-size:13px;line-height:1.3;grid-column:span 3}
+.acts #dScan,.acts #dDel{grid-column:span 6;font-size:15px;padding:12px 6px;white-space:nowrap}
+.r4{flex-wrap:nowrap}
+.r4 button{min-width:0;flex:1;padding:10px 2px;font-size:13px;line-height:1.3}
 .dgt{color:var(--dg)}
 .meta{font-size:13px;color:var(--mu);margin:8px 0}
 .dtitle{font-weight:700;word-break:break-all;margin:6px 0}
@@ -126,9 +128,10 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     <div id="detView" hidden>
       <input type="text" id="dNote" placeholder="Ghi chú" maxlength="200" autocomplete="off">
       <div class="acts">
-        <button class="sec" id="dCopy">📋 Sao chép</button>
-        <button class="ok" id="dShareFile">📤 Chia sẻ file</button>
-        <button class="ok" id="dDlFile">💾 Tải file</button>
+        <button class="sec" id="dCopy">📋<br>Sao chép</button>
+        <button class="sec" id="dShare">📤<br>Chia sẻ</button>
+        <button class="ok" id="dShareFile">📤<br>Chia sẻ file</button>
+        <button class="ok" id="dDlFile">💾<br>Tải file</button>
         <button id="dScan">▶ Quét tiếp</button>
         <button class="sec dgt" id="dDel">🗑 Xóa</button>
       </div>
@@ -138,7 +141,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       </div>
     </div>
   </section>
-  <footer>© Đức Trung · v15</footer>
+  <footer>© Đức Trung · v16</footer>
 </div>
 
 <div class="bar" id="bar">
@@ -150,10 +153,11 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
         <button class="big" id="bResume">▶ Tiếp tục</button>
         <button class="ok big" id="bNew">➕ Quét mới</button>
       </div>
-      <div class="row">
-        <button class="sec sm" id="bXlsx">📊 Excel</button>
-        <button class="sec sm" id="bShare">📤 Chia sẻ</button>
-        <button class="sec sm" id="bCopy">📋 Sao chép</button>
+      <div class="row r4">
+        <button class="sec" id="bCopy">📋<br>Sao chép</button>
+        <button class="sec" id="bShare">📤<br>Chia sẻ</button>
+        <button class="ok" id="bShareFile">📤<br>Chia sẻ file</button>
+        <button class="ok" id="bDlFile">💾<br>Tải file</button>
       </div>
     </div>
   </div>
@@ -193,7 +197,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     show('ctl',mode==='idle');show('ctlScan',mode==='scan');show('ctlStopped',mode==='stopped');
     cam.classList.toggle('on',mode==='scan');
     var has=codes().length>0;
-    ['bXlsx','bShare','bCopy'].forEach(function(i){$(i).disabled=!has});
+    ['bShareFile','bDlFile','bShare','bCopy'].forEach(function(i){$(i).disabled=!has});
     fitBar();
   }
 
@@ -559,7 +563,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       var b=document.createElement('button');b.textContent=label;b.className=cls;b.style.cssText='width:100%;margin-top:8px';
       b.onclick=function(){fn(b)};box.appendChild(b);
     }
-    add('📝 Chia sẻ dạng văn bản (mỗi mã 1 dòng)','',function(){ov.remove();shareText()});
+    add('📝 Chia sẻ dạng văn bản (mỗi mã 1 dòng)','',function(){ov.remove();shareText(s)});
     add('📄 Chia sẻ file CSV (mở được bằng Excel)','sec',async function(){
       var f=csvFile(s);
       try{
@@ -584,13 +588,14 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     }
   }
   function asText(s){return s.codes.map(function(r){return r.code}).join('\n')}
-  async function shareText(){
-    if(!codes().length)return;
+  async function shareText(ss){
+    ss=(ss&&ss.codes)?ss:cur;
+    if(!ss||!ss.codes.length)return;
     if(navigator.share){
-      try{await navigator.share({title:'Danh sách mã QR',text:asText(cur)});return}
+      try{await navigator.share({title:'Danh sách mã QR',text:asText(ss)});return}
       catch(e){if(e.name==='AbortError')return}
     }
-    copyStr(asText(cur),'Đã sao chép '+cur.codes.length+' dòng');
+    copyStr(asText(ss),'Đã sao chép '+ss.codes.length+' dòng');
   }
   async function shareLink(){
     var url=location.origin+location.pathname;
@@ -609,8 +614,10 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   $('bResume').onclick=start;
   $('bNew').onclick=function(){newSession(true);render();start()};
   $('bStop').onclick=stop;
-  $('bXlsx').onclick=function(){exportXlsx(cur)};
-  $('bShare').onclick=shareText;
+  $('bShareFile').onclick=function(){exportXlsx(cur)};
+  $('bDlFile').onclick=function(){downloadFile(cur)};
+  $('bShare').onclick=function(){shareText(cur)};
+  $('dShare').onclick=function(){shareText(detail)};
   $('bCopy').onclick=function(){if(codes().length)copyStr(asText(cur),'Đã sao chép '+cur.codes.length+' dòng')};
   $('bLink').onclick=shareLink;
     $('dCopy').onclick=function(){if(detail&&detail.codes.length)copyStr(asText(detail),'Đã sao chép '+detail.codes.length+' ID')};

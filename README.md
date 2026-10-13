@@ -26,7 +26,6 @@ Project → Settings → Environment Variables (chọn Production + Preview):
 | Tên | Giá trị |
 |---|---|
 | `GITHUB_TOKEN` | token ở bước 1 (bắt buộc) |
-| `ACCESS_KEY` | một mã tự đặt, vd `Samju-2026-xxxx` (rất nên có) |
 | `GITHUB_REPO` | `o0oS2/Scan` (mặc định) |
 | `GITHUB_BRANCH` | `main` (mặc định) |
 | `GITHUB_DIR` | `scans` (mặc định) |
@@ -34,12 +33,12 @@ Project → Settings → Environment Variables (chọn Production + Preview):
 Sau khi thêm biến → **Deployments → Redeploy** để áp dụng.
 
 ## 5. Dùng
-Mở link `https://<ten-project>.vercel.app` → nhập `ACCESS_KEY` 1 lần/máy → xong.
-- Mỗi mã quét được lưu ngay trên máy, ~1,5 giây sau tự đẩy lên `scans/*.json` trong repo.
-- Mỗi 30 giây / khi mở lại app / khi có mạng trở lại: tự đồng bộ 2 chiều (máy khác quét cũng hiện, file xoá ở máy khác cũng mất theo).
-- Mất mạng: vẫn quét và lưu trên máy, có mạng lại tự đẩy lên.
+Mở link `https://<ten-project>.vercel.app` là dùng được, không cần nhập gì.
+- Mỗi mã quét, mỗi lần sửa ghi chú đều lưu ngay trên máy và ~1 giây sau tự lưu lên `scans/*.json` trong repo.
+- Danh sách được tải từ GitHub khi mở app và khi mở tab “Đã lưu”. Mất mạng vẫn quét được, có mạng lại tự đẩy lên.
+- Tên danh sách: 4 ký tự đầu - 10 ký tự tiếp theo của Lot ID đầu tiên (chỉnh `NAME_A`, `NAME_B` trong `index.html`).
 
 ## Lưu ý bảo mật
 - Nên để repo **Private** (dữ liệu Lot ID nằm trong repo). Vercel vẫn đọc được repo private bình thường.
-- Không có `ACCESS_KEY` thì ai biết link đều đọc/ghi được thư mục `scans` – hãy đặt.
+- Không đặt `ACCESS_KEY` nên ai biết link đều đọc/ghi được thư mục `scans`.
 - Proxy chỉ cho đọc thư mục `scans` và ghi/xoá file `.json` trong đó, không đụng được phần còn lại của repo.

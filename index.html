@@ -178,7 +178,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   try{localStorage.removeItem('qlid_gh');localStorage.removeItem('qlid_key')}catch(e){}   // xoá token cũ lưu trên máy (nếu có)
   var cfg={repo:'',branch:'main',dir:'scans'};
   var srv={ready:false};
-  var NAME_A=4,NAME_B=6;   // tên danh sách = NAME_A ký tự đầu - NAME_B ký tự tiếp theo của Lot ID đầu tiên
+  var NAME_A=4,NAME_B=10;   // tên danh sách = NAME_A ký tự đầu - NAME_B ký tự tiếp theo của Lot ID đầu tiên
   var cur=null,seen={},detail=null,tab=1;
 
   function pad(n){return n<10?'0'+n:n}

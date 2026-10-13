@@ -137,7 +137,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       </div>
     </div>
   </section>
-  <footer>© Đức Trung</footer>
+  <footer>© Đức Trung · v12</footer>
 </div>
 
 <div class="bar" id="bar">
@@ -183,7 +183,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   function fmt(ts){var d=new Date(ts);return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes())}
   function persist(){LS.set('qlid_sessions',sessions)}
   function setStatus(t,c){var s=$('status');s.textContent=t;s.className='status'+(c?' '+c:'')}
-  function toast(m){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove('on')},1800)}
+  function toast(m,ms){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove('on')},ms||1800)}
   function show(id,on){$(id).hidden=!on}
   function fitBar(){document.body.style.paddingBottom=(tab===1?$('bar').offsetHeight+16:24)+'px'}
   function codes(){return cur?cur.codes:[]}
@@ -496,6 +496,13 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     toast('Chưa tải được thư viện Excel, xuất file CSV');
     return {name:base+'.csv',blob:new Blob([csv],{type:'text/csv;charset=utf-8'})};
   }
+  function whyNoShare(e){
+    var ua=navigator.userAgent||'';
+    if(/Zalo|FBAN|FBAV|Messenger|Instagram|Line\/|TikTok|MicroMessenger/i.test(ua))return 'đang mở trong app Zalo/Facebook..., hãy mở bằng Chrome/Safari';
+    if(!window.isSecureContext)return 'trang chưa chạy HTTPS';
+    if(!navigator.share)return 'trình duyệt này không hỗ trợ chia sẻ';
+    return e?(e.name||'lỗi')+(e.message?': '+String(e.message).slice(0,80):''):'không rõ nguyên nhân';
+  }
   async function exportXlsx(s){
     if(!s||!s.codes.length)return;
     var file;
@@ -503,15 +510,16 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       if(typeof XLSX==='undefined')await loadXlsx();   // thường đã có sẵn → không await, bảng chia sẻ mở tức thì
       file=buildFile(s);
     }catch(e){toast('Lỗi tạo file: '+(e&&e.message||e));return}
+    var f,err=null;
     try{
-      var f=new File([file.blob],file.name,{type:file.blob.type});
+      f=new File([file.blob],file.name,{type:file.blob.type});
       if(navigator.share){
         try{await navigator.share({files:[f],title:file.name});return}   // bảng chia sẻ: gửi đi hoặc lưu vào máy
-        catch(e){if(e&&e.name==='AbortError')return}                    // lỗi khác → tải thẳng xuống
+        catch(e){if(e&&e.name==='AbortError')return;err=e}
       }
-      saveBlob(file.blob,file.name);
-      toast('Đã tải file '+file.name);
-    }catch(e){toast('Không xuất được file: '+(e&&e.message||e))}
+    }catch(e){err=e}
+    saveBlob(file.blob,file.name);   // không mở được bảng chia sẻ → tải thẳng xuống
+    toast('Không mở được bảng chia sẻ ('+whyNoShare(err)+'). Đã tải file '+file.name,6000);
   }
   async function copyStr(str,okMsg){
     try{await navigator.clipboard.writeText(str);toast(okMsg)}

@@ -74,9 +74,9 @@ footer{text-align:center;color:var(--mu);font-size:13px;padding:20px 0 8px}
   .srow{grid-template-columns:40px minmax(0,1.2fr) 150px 70px minmax(0,1.5fr);grid-template-areas:"n f d c nt";column-gap:14px}
   .srow .nt{font-size:15px}
 }
-.acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
-@media(min-width:700px){.acts{grid-template-columns:repeat(4,1fr)}}
-.acts button{min-width:0;padding:12px 6px;font-size:15px;white-space:nowrap}
+.acts{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:10px 0}
+.acts button{min-width:0;padding:12px 4px;font-size:14px;white-space:nowrap;grid-column:span 2}
+.acts #dScan,.acts #dDel{grid-column:span 3;font-size:15px}
 .dgt{color:var(--dg)}
 .meta{font-size:13px;color:var(--mu);margin:8px 0}
 .dtitle{font-weight:700;word-break:break-all;margin:6px 0}
@@ -126,8 +126,9 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     <div id="detView" hidden>
       <input type="text" id="dNote" placeholder="Ghi chú" maxlength="200" autocomplete="off">
       <div class="acts">
-        <button class="sec" id="dCopy">📋 Sao chép tất cả</button>
-        <button class="ok" id="dXlsx">📊 Excel</button>
+        <button class="sec" id="dCopy">📋 Sao chép</button>
+        <button class="ok" id="dShareFile">📤 Chia sẻ file</button>
+        <button class="ok" id="dDlFile">💾 Tải file</button>
         <button id="dScan">▶ Quét tiếp</button>
         <button class="sec dgt" id="dDel">🗑 Xóa</button>
       </div>
@@ -137,7 +138,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
       </div>
     </div>
   </section>
-  <footer>© Đức Trung · v14</footer>
+  <footer>© Đức Trung · v15</footer>
 </div>
 
 <div class="bar" id="bar">
@@ -503,6 +504,15 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     if(!navigator.share)return 'trình duyệt này không hỗ trợ chia sẻ';
     return e?(e.name||'lỗi')+(e.message?': '+String(e.message).slice(0,80):''):'không rõ nguyên nhân';
   }
+  async function downloadFile(s){
+    if(!s||!s.codes.length)return;
+    try{
+      if(typeof XLSX==='undefined')await loadXlsx();
+      var file=buildFile(s);
+      saveBlob(file.blob,file.name);
+      toast('Đã tải file '+file.name+' (mục Tải xuống)',3500);
+    }catch(e){toast('Lỗi tạo file: '+(e&&e.message||e))}
+  }
   var shareBusy=false;
   async function exportXlsx(s){
     if(!s||!s.codes.length||shareBusy)return;
@@ -604,7 +614,8 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   $('bCopy').onclick=function(){if(codes().length)copyStr(asText(cur),'Đã sao chép '+cur.codes.length+' dòng')};
   $('bLink').onclick=shareLink;
     $('dCopy').onclick=function(){if(detail&&detail.codes.length)copyStr(asText(detail),'Đã sao chép '+detail.codes.length+' ID')};
-  $('dXlsx').onclick=function(){exportXlsx(detail)};
+  $('dShareFile').onclick=function(){exportXlsx(detail)};
+  $('dDlFile').onclick=function(){downloadFile(detail)};
   $('dScan').onclick=function(){
     if(!detail)return;
     var s=detail;

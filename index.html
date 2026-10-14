@@ -324,8 +324,11 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   }
   function mkName(){
     var c=(cur.codes[0].code||'').replace(/[\s\/\\:*?"<>|]/g,'');
-    var a=c.slice(0,NAME_A),b=c.slice(NAME_A,NAME_A+NAME_B);
-    var base=(a+(b?'-'+b:'')).replace(/[^A-Za-z0-9._-]/g,'_')||('QR_'+Date.now()),name=base,k=2;
+    var head=c.slice(0,NAME_A+NAME_B+1);   // 11 ký tự đầu
+    var raw;
+    if(head.indexOf('-')>-1){raw=head}   // đã có dấu '-' trong 11 ký tự đầu → giữ nguyên làm tên
+    else{var a=c.slice(0,NAME_A),b=c.slice(NAME_A,NAME_A+NAME_B);raw=a+(b?'-'+b:'')}   // như cũ
+    var base=raw.replace(/[^A-Za-z0-9._-]/g,'_')||('QR_'+Date.now()),name=base,k=2;
     while(sessions.some(function(s){return s.file===name}))name=base+'_'+(k++);
     return name;
   }
